@@ -1,9 +1,8 @@
-import java.io.{FileInputStream, File}
-import java.util.Properties
-import scala.collection.JavaConverters._
+import java.io.File
+
+import scala.collection.immutable.ListMap
 import scala.io.Source._
 import scala.util.Random
-import scala.collection.immutable.ListMap
 
 object Sanakoe {
 
@@ -15,7 +14,7 @@ object Sanakoe {
       for (sanasto <- sanastot) println(sanastot.indexOf(sanasto) + 1 + ") " + sanasto.nimi)
     } else {
       val sanasto = sanastot(parametrit(0).toInt - 1)
-      val (oikein, yhteensa) = kysele(sanasto.sekoitaJaLyhennä(10))
+      val (oikein, yhteensa) = kyseleEnglanniksi(sanasto.sekoitaJaLyhennä(10))
       println("Sait " + oikein + "/" + yhteensa + " oikein!")
     }
   }
@@ -28,26 +27,37 @@ object Sanakoe {
     sanastot
   }
 
-  def kysele(sanasto: Sanasto) = {
+  def kyseleEnglanniksi(sanasto: Sanasto) = {
     var oikein = 0
 
     for ((en, fi) <- sanasto.sanat) {
-      if (kysy(en, fi)) {
-        println("-> Oikein!")
-        oikein = oikein + 1;
-      } else {
-        println("-> Väärin meni! Oikea vastaus oli '" + en + "'")
+      println {
+        kysyEnglanniksi(en, fi, vertaa) match
+        {
+          case Oikein() => {
+            oikein = oikein + 1
+            "Oikein!"
+          }
+          case Miinus() => "Melkein oikein."
+          case _ => "Ei aivan! Oikea vastaus oli `" + en + "`."
+        }
       }
     }
 
     (oikein, sanasto.sanat.size)
   }
 
-  def kysy(en: String, fi: String) = {
+  def vertaa(oikein: String, vastaus: String): Tulos =
+    vastaus match {
+      case `oikein` => Oikein()
+      case _ => Väärin()
+    }
+
+  def kysyEnglanniksi(en: String, fi: String, vertaa: (String, String) => Tulos) = {
     println
     println("Mitä on englanniksi '" + fi + "'?")
     print("# ")
-    (readLine.trim == en)
+    vertaa(readLine.trim, en)
   }
 
   def lataaSanasto(tiedosto: File) =
@@ -87,3 +97,11 @@ class Sanasto(n: String, s: ListMap[String, String]) {
 
   def poista(indeksi: String, lista: List[String]) = lista diff List(indeksi)
 }
+
+sealed abstract class Tulos
+
+case class Oikein extends Tulos
+
+case class Miinus extends Tulos
+
+case class Väärin extends Tulos
